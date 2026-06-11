@@ -1,0 +1,184 @@
+# Converted Documentation Format: OpenAPI 3.0 Specification
+# Generated using Prompt 2: Convert Markdown documentation to OpenAPI format
+
+openapi: 3.0.3
+
+info:
+  title: FastAPI User Management API
+  description: >
+    API for managing users in a FastAPI application.
+    Demonstrates Repository pattern, dependency injection,
+    JWT authentication, and role-based access control.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /admin/users/:
+    get:
+      summary: List all users (admin only)
+      description: >
+        Returns a paginated list of all registered users.
+        Requires a valid JWT token with admin role.
+        Every successful call is recorded in the audit log.
+      operationId: list_users
+      tags:
+        - Admin
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: skip
+          in: query
+          required: false
+          description: Number of records to skip for pagination
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of records to return
+          schema:
+            type: integer
+            default: 100
+            minimum: 1
+            maximum: 1000
+      responses:
+        '200':
+          description: Successful response — list of users returned
+          headers:
+            X-Process-Time:
+              description: Request processing time in milliseconds
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+              example:
+                - id: 1
+                  username: alice
+                  role: admin
+                  status: member
+                  months: 14
+                - id: 2
+                  username: bob
+                  role: user
+                  status: regular
+                  months: 3
+        '401':
+          description: Unauthorized — missing, expired, or invalid JWT token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: Invalid authentication credentials
+        '403':
+          description: Forbidden — user does not have admin role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                detail: "Role 'admin' required."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /token:
+    post:
+      summary: Obtain a JWT access token
+      description: Authenticate with username and password to receive a Bearer token.
+      operationId: login
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required:
+                - username
+                - password
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Token issued successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid credentials
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        JWT token obtained from POST /token.
+        Include as: Authorization: Bearer <token>
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Unique user identifier
+          example: 1
+        username:
+          type: string
+          description: The user's login name
+          example: alice
+        role:
+          type: string
+          enum: [user, admin]
+          description: User's role in the system
+          example: admin
+        status:
+          type: string
+          enum: [regular, member, vip]
+          description: Membership status
+          example: member
+        months:
+          type: integer
+          description: Number of months as a member
+          example: 14
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+          description: The JWT Bearer token
+        token_type:
+          type: string
+          example: bearer
+
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+          description: Human-readable error message
